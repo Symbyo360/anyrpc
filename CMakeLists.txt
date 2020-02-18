@@ -1,114 +1,133 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.9)
 
-Project(AnyRPC CXX)
+project(anyrpc VERSION 1.0.2 LANGUAGES CXX)
 
-# Some of the cmake find_package files are part of this distribution
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>")
 
-# Read out version from "version" file
-file(STRINGS "version" ANYRPC_VERSION_FILE)
+# list the header files
+set(HEADER_FILES
+	include/anyrpc/anyrpc.h
+	include/anyrpc/api.h
+	include/anyrpc/client.h
+	include/anyrpc/connection.h
+	include/anyrpc/document.h
+	include/anyrpc/error.h
+	include/anyrpc/handler.h
+	include/anyrpc/logger.h
+	include/anyrpc/method.h
+	include/anyrpc/reader.h
+	include/anyrpc/server.h
+	include/anyrpc/socket.h
+	include/anyrpc/stream.h
+	include/anyrpc/value.h
+	include/anyrpc/version.h
+	include/anyrpc/internal/base64.h
+	include/anyrpc/internal/http.h
+	include/anyrpc/internal/inttypes.h
+	include/anyrpc/internal/mingw.condition_variable.h
+	include/anyrpc/internal/mingw.mutex.h
+	include/anyrpc/internal/mingw.thread.h
+	include/anyrpc/internal/stdint.h
+	include/anyrpc/internal/strtod.h
+	include/anyrpc/internal/time.h
+	include/anyrpc/internal/unicode.h
+	include/anyrpc/json/jsonclient.h
+	include/anyrpc/json/jsonreader.h
+	include/anyrpc/json/jsonserver.h
+	include/anyrpc/json/jsonwriter.h
+	include/anyrpc/messagepack/messagepackclient.h
+	include/anyrpc/messagepack/messagepackformat.h
+	include/anyrpc/messagepack/messagepackreader.h
+	include/anyrpc/messagepack/messagepackserver.h
+	include/anyrpc/messagepack/messagepackwriter.h
+	include/anyrpc/messagepack/sysdep.h
+	include/anyrpc/xml/xmlclient.h
+	include/anyrpc/xml/xmlreader.h
+	include/anyrpc/xml/xmlserver.h
+	include/anyrpc/xml/xmlwriter.h
+)
 
-#parse the version information into pieces.
-string(REGEX REPLACE "^v([0-9]+)\\..*" "\\1" ANYRPC_VERSION_MAJOR "${ANYRPC_VERSION_FILE}")
-string(REGEX REPLACE "^v[0-9]+\\.([0-9]+).*" "\\1" ANYRPC_VERSION_MINOR "${ANYRPC_VERSION_FILE}")
-string(REGEX REPLACE "^v[0-9]+\\.[0-9]+\\.([0-9]+).*" "\\1" ANYRPC_VERSION_PATCH "${ANYRPC_VERSION_FILE}")
-string(REGEX REPLACE "^v[0-9]+\\.[0-9]+\\.[0-9]+ +(.*)" "\\1" ANYRPC_VERSION_QUALIFIER "${ANYRPC_VERSION_FILE}")
+# list the source files
+set(SOURCE_FILES
+	src/client.cpp
+	src/CMakeLists.txt
+	src/connection.cpp
+	src/document.cpp
+	src/handler.cpp
+	src/logger.cpp
+	src/method.cpp
+	src/reader.cpp
+	src/server.cpp
+	src/socket.cpp
+	src/stream.cpp
+	src/value.cpp
+	src/internal/base64.cpp
+	src/internal/http.cpp
+	src/internal/time.cpp
+	src/internal/unicode.cpp
+	src/json/jsonclient.cpp
+	src/json/jsonreader.cpp
+	src/json/jsonserver.cpp
+	src/json/jsonwriter.cpp
+	src/messagepack/messagepackclient.cpp
+	src/messagepack/messagepackreader.cpp
+	src/messagepack/messagepackserver.cpp
+	src/messagepack/messagepackwriter.cpp
+	src/xml/xmlclient.cpp
+	src/xml/xmlreader.cpp
+	src/xml/xmlserver.cpp
+	src/xml/xmlwriter.cpp
+)
 
-set(ANYRPC_VERSION ${ANYRPC_VERSION_MAJOR}.${ANYRPC_VERSION_MINOR}.${ANYRPC_VERSION_PATCH})
 
-message(STATUS "AnyRPC Version: ${ANYRPC_VERSION_MAJOR}.${ANYRPC_VERSION_MINOR}.${ANYRPC_VERSION_PATCH} (${ANYRPC_VERSION_QUALIFIER})")
-set(ANYRPC_VERSION_STRING "${ANYRPC_VERSION_MAJOR}.${ANYRPC_VERSION_MINOR}.${ANYRPC_VERSION_PATCH} (${ANYRPC_VERSION_QUALIFIER})" )
+# add library target
+add_library(anyrpc
+	${HEADER_FILES}
+	${SOURCE_FILES}
+)
 
-# compile in release with debug info mode by default
-set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build Type")
+add_library(AnyRPC::anyrpc ALIAS anyrpc)
 
-# Build all binaries in a separate directory
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+# make it reflect the same structure as the one on disk
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${HEADER_FILES})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCE_FILES})
 
-option(BUILD_EXAMPLES "Build AnyRPC examples." ON)
-option(BUILD_TESTS "Build AnyRPC unit tests." OFF)
-option(BUILD_WITH_ADDRESS_SANITIZE "Build address sanitizer." OFF)
-option(BUILD_WITH_LOG4CPLUS "Build log4cplus." ON)
-option(BUILD_WITH_THREADING "Build with threading." ON)
-option(BUILD_WITH_REGEX "Build with regular expression." ON)
-option(BUILD_WITH_WCHAR "Build with wide character interface for Value." ON)
 
-option(BUILD_PROTOCOL_JSON "Build with Json protocol included." ON)
-option(BUILD_PROTOCOL_XML "Build with Xml procotol included." ON)
-option(BUILD_PROTOCOL_MESSAGEPACK "Build with MessgePack protocol included." ON)
-
-set(ANYRPC_ASSERT "throw" CACHE STRING "action to take on failed assertion")
-set_property(CACHE ANYRPC_ASSERT PROPERTY STRINGS assert throw no_action)
-
-set(ANYRPC_THROW "throw" CACHE STRING "action to take on throw call")
-set_property(CACHE ANYRPC_THROW PROPERTY STRINGS assert throw)
-
-#add extra search paths for libraries and includes
-set(INCLUDE_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/include" CACHE PATH "The directory the headers are installed in")
-set(LIB_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/lib" CACHE STRING "Directory where lib will install")
-
-include_directories(${CMAKE_SOURCE_DIR}/include)
-
-set(ANYRPC_INCLUDE_JSON ${BUILD_PROTOCOL_JSON})
-set(ANYRPC_INCLUDE_XML ${BUILD_PROTOCOL_XML})
-set(ANYRPC_INCLUDE_MESSAGEPACK ${BUILD_PROTOCOL_MESSAGEPACK})
-
-set(ANYRPC_THREADING ${BUILD_WITH_THREADING})
-set(ANYRPC_REGEX ${BUILD_WITH_REGEX})
-set(ANYRPC_WCHAR ${BUILD_WITH_WCHAR})
-
-if (MSVC)
-    add_definitions( -D _CRT_SECURE_NO_WARNINGS )
-    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc" )
-elseif (MINGW)
-    SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -U__STRICT_ANSI__" )
-else (BUILD_WITH_ADDRESS_SANITIZE)
-    SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer" )
-    SET( ASAN_LIBRARY asan )
-endif ()
-
-if (NOT MSVC)
-    SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -std=c++11" )
-endif ()
-
-if (ANYRPC_ASSERT STREQUAL "assert")
-    set(ANYRPC_ASSERT_LEVEL 2)
-elseif (ANYRPC_ASSERT STREQUAL "throw")
-    set(ANYRPC_ASSERT_LEVEL 1)
-else ()
-    set(ANYRPC_ASSERT_LEVEL 0)
-endif ()
-
-if (ANYRPC_THROW STREQUAL "assert")
-    set(ANYRPC_THROW_LEVEL 2)
-else ()
-    set(ANYRPC_THROW_LEVEL 1)
-endif ()
-
-# File version.h is only regenerated on CMake configure step
-CONFIGURE_FILE( "${PROJECT_SOURCE_DIR}/version.h.in"
-                "${PROJECT_SOURCE_DIR}/include/anyrpc/version.h" )
-
-if (BUILD_WITH_LOG4CPLUS)
-    find_package( Log4cplus )
-    if (NOT LOG4CPLUS_FOUND)
-        # the find_package call for Log4cplus doesn't generate an error even if marked as required
-        message( FATAL_ERROR "LOG4CPLUS library required if BUILD_WITH_LOG4CPLUS on" )
-    endif ()
-endif ()
-
-add_subdirectory(src)
-
-if (BUILD_EXAMPLES)
-    add_subdirectory(example)
+# Windows specfic flags to enable W variations of winapi
+if(WIN32)
+	target_link_libraries(anyrpc
+		PRIVATE
+			ws2_32
+	)
 endif()
 
-if (BUILD_TESTS)
-    find_package( GTest REQUIRED )
-    add_subdirectory(test)
-endif()
+# enable C++17
+# disable any compiler specifc extensions
+# add d suffix in debug mode
+target_compile_features(anyrpc PUBLIC cxx_std_17)
+set_target_properties(anyrpc PROPERTIES
+	CXX_EXTENSIONS OFF
+	DEBUG_POSTFIX d
+)
 
-install(DIRECTORY include/anyrpc
-    DESTINATION "${INCLUDE_INSTALL_DIR}"
-    COMPONENT dev)
+if(BUILD_SHARED_LIBS)
+	target_compile_definitions(anyrpc
+		PRIVATE
+			ANYRPC_DLL_BUILD=1
+		INTERFACE
+			ANYRPC_DLL=1
+	)
+endif(BUILD_SHARED_LIBS)
+
+# define debug macro
+target_compile_definitions(anyrpc PRIVATE "$<$<CONFIG:DEBUG>:DEBUG>")
+
+# list include directories
+target_include_directories(anyrpc
+	PUBLIC
+	${CMAKE_CURRENT_SOURCE_DIR}/include
+	PRIVATE
+	${CMAKE_CURRENT_SOURCE_DIR}/src
+)
